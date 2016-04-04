@@ -13,7 +13,8 @@ var vertCode =
 'varying vec4 vColor;' +
 
 'void main(void) {' + 
-' gl_Position = u_matrix * coordinates;'+
+' vec4 position = coordinates * vec4(-1, -1, 1, 1);' +
+' gl_Position = u_matrix * position;'+
 ' vColor = a_color;' + 
 '}';
 
@@ -55,10 +56,11 @@ gl.bindBuffer(gl.ARRAY_BUFFER, null);*/
 
 /* =========== Variables ============*/
 
-var translation = [-50, 50, -360];
-var rotation = [190, 40, 320];
-var scale = [1, 1, 1];
+// var translation = [-50, 50, -360];
+// var rotation = [190, 40, 320];
+// var scale = [1, 1, 1];
 var fieldOfViewRadians = degToRad(60);
+var cameraAngleRadians = degToRad(0);
 
 /* ===========Associating shaders to buffer objects============*/
 
@@ -102,29 +104,46 @@ function drawScene(){
   // Clear the color buffer bit
   gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
   
+  var numFs = 5;
+  var radius = 200;
+  var fPosition = [radius, 0, 0];
+
   var aspect = canvas.clientWidth / canvas.clientHeight;
   var projectionMatrix = makePerspective(fieldOfViewRadians, aspect, 1, 2000);
-  var translationMatrix = makeTranslation(translation[0], translation[1], translation[2]);
-  var rotationXMatrix = makeXRotation(rotation[0]);
-  var rotationYMatrix = makeYRotation(rotation[1]);
-  var rotationZMatrix = makeZRotation(rotation[2]);
-  var scaleMatrix = makeScale(scale[0], scale[1], scale[2]);
+  
+  var cameraMatrix = makeTranslation(0, 50, radius *1.5);
+  cameraMatrix = matrixMultiply(cameraMatrix, makeYRotation(cameraAngleRadians));
+
+  var cameraPosition = [
+    cameraMatrix[12],
+    cameraMatrix[13],
+    cameraMatrix[14]];
+
+  var up = [0, 1, 0];
+
+  cameraMatrix = makeLookAt(cameraPosition, fPosition, up);
+
+  var viewMatrix = makeInverse(cameraMatrix); 
+
+  for (var ii =0; ii < numFs; ++ii){
+    var angle = ii * Math.PI * 2 / numFs;
+
+    var x = Math.cos(angle) * radius;
+    var z = Math.sin(angle) * radius;
+    var translationMatrix = makeTranslation(x, 0, z);
+
+    var matrix = translationMatrix;
+    matrix = matrixMultiply(matrix, viewMatrix);
+    matrix = matrixMultiply(matrix, projectionMatrix);
+    
+    gl.uniformMatrix4fv(matrixLocation, false, matrix);
+    //gl.uniform3f(a_color, Math.random(), Math.random(), Math.random());
 
 
+    gl.drawArrays(gl.TRIANGLES, 0, 16*6);
+  }
 
-  // var moveOriginMatrix = makeTranslation(-50, -75);
-  //var matrix = matrixMultiply(moveOriginMatrix, scaleMatrix);
-  var matrix = matrixMultiply(scaleMatrix, rotationZMatrix);
-  matrix = matrixMultiply(matrix, rotationYMatrix);
-  matrix = matrixMultiply(matrix, rotationXMatrix);
-  matrix = matrixMultiply(matrix, translationMatrix);
-  matrix = matrixMultiply(matrix, projectionMatrix);
-
-  gl.uniformMatrix4fv(matrixLocation, false, matrix);
-  //gl.uniform3f(a_color, Math.random(), Math.random(), Math.random());
-
-
-  gl.drawArrays(gl.TRIANGLES, 0, 16*6);
+  
 
 }
 
@@ -152,10 +171,10 @@ function setRectangle(gl, x, y, width, height){
 }
 
 // Fill the buffer with the values that define a letter 'F'.
+// Fill the buffer with the values that define a letter 'F'.
+// Fill the buffer with the values that define a letter 'F'.
 function setGeometry(gl) {
-  gl.bufferData(
-      gl.ARRAY_BUFFER,
-      new Float32Array([
+  var positions = new Float32Array([
           // left column front
           0,   0,  0,
           0, 150,  0,
@@ -282,8 +301,26 @@ function setGeometry(gl) {
           0, 150,  30,
           0,   0,   0,
           0, 150,  30,
-          0, 150,   0]),
-      gl.STATIC_DRAW);
+          0, 150,   0]);
+
+  // Center the F around the origin and Flip it around. We do this because
+  // we're in 3D now with and +Y is up where as before when we started with 2D
+  // we had +Y as down.
+
+  // We could do by changing all the values above but I'm lazy.
+  // We could also do it with a matrix at draw time but you should
+  // never do stuff at draw time if you can do it at init time.
+  var matrix = makeTranslation(-50, -75, -15);
+  matrix = matrixMultiply(matrix, makeXRotation(Math.PI));
+
+  for (var ii = 0; ii < positions.length; ii += 3) {
+    var vector = matrixVectorMultiply([positions[ii + 0], positions[ii + 1], positions[ii + 2], 1], matrix);
+    positions[ii + 0] = vector[0];
+    positions[ii + 1] = vector[1];
+    positions[ii + 2] = vector[2];
+  }
+
+  gl.bufferData(gl.ARRAY_BUFFER, positions, gl.STATIC_DRAW);
 }
 
 // Fill the buffer with colors for the 'F'.
@@ -573,4 +610,137 @@ function makePerspective(fieldOfViewInRadians, aspect, near, far){
     0, f, 0, 0,
     0, 0, (near + far) * rangeInv, -1,
     0, 0, near * far * rangeInv * 2, 0];
+}
+
+function makeInverse(m) {
+  var m00 = m[0 * 4 + 0];
+  var m01 = m[0 * 4 + 1];
+  var m02 = m[0 * 4 + 2];
+  var m03 = m[0 * 4 + 3];
+  var m10 = m[1 * 4 + 0];
+  var m11 = m[1 * 4 + 1];
+  var m12 = m[1 * 4 + 2];
+  var m13 = m[1 * 4 + 3];
+  var m20 = m[2 * 4 + 0];
+  var m21 = m[2 * 4 + 1];
+  var m22 = m[2 * 4 + 2];
+  var m23 = m[2 * 4 + 3];
+  var m30 = m[3 * 4 + 0];
+  var m31 = m[3 * 4 + 1];
+  var m32 = m[3 * 4 + 2];
+  var m33 = m[3 * 4 + 3];
+  var tmp_0  = m22 * m33;
+  var tmp_1  = m32 * m23;
+  var tmp_2  = m12 * m33;
+  var tmp_3  = m32 * m13;
+  var tmp_4  = m12 * m23;
+  var tmp_5  = m22 * m13;
+  var tmp_6  = m02 * m33;
+  var tmp_7  = m32 * m03;
+  var tmp_8  = m02 * m23;
+  var tmp_9  = m22 * m03;
+  var tmp_10 = m02 * m13;
+  var tmp_11 = m12 * m03;
+  var tmp_12 = m20 * m31;
+  var tmp_13 = m30 * m21;
+  var tmp_14 = m10 * m31;
+  var tmp_15 = m30 * m11;
+  var tmp_16 = m10 * m21;
+  var tmp_17 = m20 * m11;
+  var tmp_18 = m00 * m31;
+  var tmp_19 = m30 * m01;
+  var tmp_20 = m00 * m21;
+  var tmp_21 = m20 * m01;
+  var tmp_22 = m00 * m11;
+  var tmp_23 = m10 * m01;
+
+  var t0 = (tmp_0 * m11 + tmp_3 * m21 + tmp_4 * m31) -
+      (tmp_1 * m11 + tmp_2 * m21 + tmp_5 * m31);
+  var t1 = (tmp_1 * m01 + tmp_6 * m21 + tmp_9 * m31) -
+      (tmp_0 * m01 + tmp_7 * m21 + tmp_8 * m31);
+  var t2 = (tmp_2 * m01 + tmp_7 * m11 + tmp_10 * m31) -
+      (tmp_3 * m01 + tmp_6 * m11 + tmp_11 * m31);
+  var t3 = (tmp_5 * m01 + tmp_8 * m11 + tmp_11 * m21) -
+      (tmp_4 * m01 + tmp_9 * m11 + tmp_10 * m21);
+
+  var d = 1.0 / (m00 * t0 + m10 * t1 + m20 * t2 + m30 * t3);
+
+  return [
+    d * t0,
+    d * t1,
+    d * t2,
+    d * t3,
+    d * ((tmp_1 * m10 + tmp_2 * m20 + tmp_5 * m30) -
+          (tmp_0 * m10 + tmp_3 * m20 + tmp_4 * m30)),
+    d * ((tmp_0 * m00 + tmp_7 * m20 + tmp_8 * m30) -
+          (tmp_1 * m00 + tmp_6 * m20 + tmp_9 * m30)),
+    d * ((tmp_3 * m00 + tmp_6 * m10 + tmp_11 * m30) -
+          (tmp_2 * m00 + tmp_7 * m10 + tmp_10 * m30)),
+    d * ((tmp_4 * m00 + tmp_9 * m10 + tmp_10 * m20) -
+          (tmp_5 * m00 + tmp_8 * m10 + tmp_11 * m20)),
+    d * ((tmp_12 * m13 + tmp_15 * m23 + tmp_16 * m33) -
+          (tmp_13 * m13 + tmp_14 * m23 + tmp_17 * m33)),
+    d * ((tmp_13 * m03 + tmp_18 * m23 + tmp_21 * m33) -
+          (tmp_12 * m03 + tmp_19 * m23 + tmp_20 * m33)),
+    d * ((tmp_14 * m03 + tmp_19 * m13 + tmp_22 * m33) -
+          (tmp_15 * m03 + tmp_18 * m13 + tmp_23 * m33)),
+    d * ((tmp_17 * m03 + tmp_20 * m13 + tmp_23 * m23) -
+          (tmp_16 * m03 + tmp_21 * m13 + tmp_22 * m23)),
+    d * ((tmp_14 * m22 + tmp_17 * m32 + tmp_13 * m12) -
+          (tmp_16 * m32 + tmp_12 * m12 + tmp_15 * m22)),
+    d * ((tmp_20 * m32 + tmp_12 * m02 + tmp_19 * m22) -
+          (tmp_18 * m22 + tmp_21 * m32 + tmp_13 * m02)),
+    d * ((tmp_18 * m12 + tmp_23 * m32 + tmp_15 * m02) -
+          (tmp_22 * m32 + tmp_14 * m02 + tmp_19 * m12)),
+    d * ((tmp_22 * m22 + tmp_16 * m02 + tmp_21 * m12) -
+          (tmp_20 * m12 + tmp_23 * m22 + tmp_17 * m02))
+  ];
+}
+
+
+
+function matrixVectorMultiply(v, m) {
+  var dst = [];
+  for (var i = 0; i < 4; ++i) {
+    dst[i] = 0.0;
+    for (var j = 0; j < 4; ++j)
+      dst[i] += v[j] * m[j * 4 + i];
+  }
+  return dst;
+};
+
+function cross(a, b){
+  return [a[1] * b[2] - a[2] * b[1],
+        a[2] * b[0] - a[0] * b[2],
+        a[0] * b[1] - a[1] * b[0]];
+}
+
+function subtractVectors(a, b) {
+  return [a[0] - b[0], a[1] - b[1], a[2] - b[2]];
+}
+
+function normalize(v) {
+  var length = Math.sqrt(v[0] * v[0] + v[1] * v[1] + v[2] * v[2]);
+  // make sure we don't divide by 0.
+  if (length > 0.00001) {
+    return [v[0] / length, v[1] / length, v[2] / length];
+  } else {
+    return [0, 0, 0];
+  }
+} 
+
+function makeLookAt(cameraPosition, target, up) {
+  var zAxis = normalize(
+      subtractVectors(cameraPosition, target));
+  var xAxis = cross(up, zAxis);
+  var yAxis = cross(zAxis, xAxis);
+ 
+  return [
+     xAxis[0], xAxis[1], xAxis[2], 0,
+     yAxis[0], yAxis[1], yAxis[2], 0,
+     zAxis[0], zAxis[1], zAxis[2], 0,
+     cameraPosition[0],
+     cameraPosition[1],
+     cameraPosition[2],
+     1];
 }
