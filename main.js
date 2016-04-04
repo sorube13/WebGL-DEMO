@@ -55,9 +55,10 @@ gl.bindBuffer(gl.ARRAY_BUFFER, null);*/
 
 /* =========== Variables ============*/
 
-var translation = [45, 150, 0];
-var rotation = [40, 25, 325];
+var translation = [-50, 50, -360];
+var rotation = [190, 40, 320];
 var scale = [1, 1, 1];
+var fieldOfViewRadians = degToRad(60);
 
 /* ===========Associating shaders to buffer objects============*/
 
@@ -87,64 +88,67 @@ drawScene();
 
 /*=================Drawing scene methods ========================*/
 function prepareScene(){
-	// Clear the canvas (default background color)
-	gl.clearColor(1, 1, 1, 0.9);
+  // Clear the canvas (default background color)
+  gl.clearColor(1, 1, 1, 0.9);
 
-	// Enable the depth test
-	gl.enable(gl.DEPTH_TEST); 
-	// Set the view port
-	gl.viewport(0,0,canvas.width,canvas.height);
+  // Enable the depth test
+  gl.enable(gl.DEPTH_TEST); 
+
+  // Set the view port
+  gl.viewport(0,0,canvas.width,canvas.height);
 
 }
 function drawScene(){
-	// Clear the color buffer bit
-	gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
-
-	var projectionMatrix = make2DProjection(canvas.clientWidth, canvas.clientHeight, 400);
-
-	var translationMatrix = makeTranslation(translation[0], translation[1], translation[2]);
-	var rotationXMatrix = makeXRotation(rotation[0]);
-	var rotationYMatrix = makeYRotation(rotation[1]);
-	var rotationZMatrix = makeZRotation(rotation[2]);
-	var scaleMatrix = makeScale(scale[0], scale[1], scale[2]);
-
-	// var moveOriginMatrix = makeTranslation(-50, -75);
-	//var matrix = matrixMultiply(moveOriginMatrix, scaleMatrix);
-	var matrix = matrixMultiply(scaleMatrix, rotationZMatrix);
-	matrix = matrixMultiply(matrix, rotationYMatrix);
-	matrix = matrixMultiply(matrix, rotationXMatrix);
-	matrix = matrixMultiply(matrix, translationMatrix);
-	matrix = matrixMultiply(matrix, projectionMatrix);
-
-	gl.uniformMatrix4fv(matrixLocation, false, matrix);
-	//gl.uniform3f(a_color, Math.random(), Math.random(), Math.random());
+  // Clear the color buffer bit
+  gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+  
+  var aspect = canvas.clientWidth / canvas.clientHeight;
+  var projectionMatrix = makePerspective(fieldOfViewRadians, aspect, 1, 2000);
+  var translationMatrix = makeTranslation(translation[0], translation[1], translation[2]);
+  var rotationXMatrix = makeXRotation(rotation[0]);
+  var rotationYMatrix = makeYRotation(rotation[1]);
+  var rotationZMatrix = makeZRotation(rotation[2]);
+  var scaleMatrix = makeScale(scale[0], scale[1], scale[2]);
 
 
-	gl.drawArrays(gl.TRIANGLES, 0, 16*6);
+
+  // var moveOriginMatrix = makeTranslation(-50, -75);
+  //var matrix = matrixMultiply(moveOriginMatrix, scaleMatrix);
+  var matrix = matrixMultiply(scaleMatrix, rotationZMatrix);
+  matrix = matrixMultiply(matrix, rotationYMatrix);
+  matrix = matrixMultiply(matrix, rotationXMatrix);
+  matrix = matrixMultiply(matrix, translationMatrix);
+  matrix = matrixMultiply(matrix, projectionMatrix);
+
+  gl.uniformMatrix4fv(matrixLocation, false, matrix);
+  //gl.uniform3f(a_color, Math.random(), Math.random(), Math.random());
+
+
+  gl.drawArrays(gl.TRIANGLES, 0, 16*6);
 
 }
 
 /*=================GEOMETRY========================*/
 
 function setRectangle(gl, x, y, width, height){
-	var x1 = x;
-	var x2 = x + width;
-	var y1 = y;
-	var y2 = y + height;
-	var z = 0;
+  var x1 = x;
+  var x2 = x + width;
+  var y1 = y;
+  var y2 = y + height;
+  var z = 0;
 
-	var vertices = [
-		x1, y1,
-		x2, y1,
-		x1, y2,
-		x2, y1,
-		x2, y2,
-		x1, y2,];
+  var vertices = [
+    x1, y1,
+    x2, y1,
+    x1, y2,
+    x2, y1,
+    x2, y2,
+    x1, y2,];
 
-	gl.bufferData(
-		gl.ARRAY_BUFFER,
-		new Float32Array(vertices),
-		gl.STATIC_DRAW);
+  gl.bufferData(
+    gl.ARRAY_BUFFER,
+    new Float32Array(vertices),
+    gl.STATIC_DRAW);
 }
 
 // Fill the buffer with the values that define a letter 'F'.
@@ -419,66 +423,66 @@ function setColors(gl) {
 
 
 function makeTranslation(tx, ty, tz){
-	return [
-		1, 0, 0, 0,
-		0, 1, 0, 0,
-		0, 0, 1, 0,
-		tx, ty, tz, 1];
+  return [
+    1, 0, 0, 0,
+    0, 1, 0, 0,
+    0, 0, 1, 0,
+    tx, ty, tz, 1];
 }
 
 function makeXRotation(angleInDegrees){
-	var angleInRadians = degToRad(angleInDegrees);	var c = Math.cos(angleInRadians);
-	var s = Math.sin(angleInRadians);
-	return [
-		1, 0, 0, 0,
-		0, c, -s, 0,
-		0, -s, c, 0,
-		0, 0, 0, 1];
+  var angleInRadians = degToRad(angleInDegrees);  var c = Math.cos(angleInRadians);
+  var s = Math.sin(angleInRadians);
+  return [
+    1, 0, 0, 0,
+    0, c, -s, 0,
+    0, -s, c, 0,
+    0, 0, 0, 1];
 }
 
 function makeYRotation(angleInDegrees){
-	var angleInRadians = degToRad(angleInDegrees);	var c = Math.cos(angleInRadians);
-	var s = Math.sin(angleInRadians);
-	return [
-		c, 0, -s, 0,
-	    0, 1, 0, 0,
-	    s, 0, c, 0,
-	    0, 0, 0, 1];
+  var angleInRadians = degToRad(angleInDegrees);  var c = Math.cos(angleInRadians);
+  var s = Math.sin(angleInRadians);
+  return [
+    c, 0, -s, 0,
+      0, 1, 0, 0,
+      s, 0, c, 0,
+      0, 0, 0, 1];
 }
 
 function makeZRotation(angleInDegrees){
-	var angleInRadians = degToRad(angleInDegrees);
-	var c = Math.cos(angleInRadians);
-	var s = Math.sin(angleInRadians);
-	return [
-	    c, s, 0, 0,
-	    -s, c, 0, 0,
-	    0, 0, 1, 0,
-	    0, 0, 0, 1];
+  var angleInRadians = degToRad(angleInDegrees);
+  var c = Math.cos(angleInRadians);
+  var s = Math.sin(angleInRadians);
+  return [
+      c, s, 0, 0,
+      -s, c, 0, 0,
+      0, 0, 1, 0,
+      0, 0, 0, 1];
 }
 
 function makeScale(sx, sy, sz){
-	return [
-		sx, 0, 0, 0,
-		0, sy, 0, 0,
-		0, 0, sz, 0,
-		0, 0, 0, 1];
+  return [
+    sx, 0, 0, 0,
+    0, sy, 0, 0,
+    0, 0, sz, 0,
+    0, 0, 0, 1];
 }
 
 /*=================Initialize WebGL ========================*/
 
 function initWebGL(canvas) {
-	gl = null;
-	try {
-		// Try to grab the standard context. If it fails, fallback to experimental.
-		gl = canvas.getContext("webgl") || canvas.getContext("experimental-webgl");
-	}catch(e) {}
-	// If we don't have a GL context, give up now
-	if (!gl) {
-		alert("Unable to initialize WebGL. Your browser may not support it.");
-		gl = null;
-	}
-	return gl;
+  gl = null;
+  try {
+    // Try to grab the standard context. If it fails, fallback to experimental.
+    gl = canvas.getContext("webgl") || canvas.getContext("experimental-webgl");
+  }catch(e) {}
+  // If we don't have a GL context, give up now
+  if (!gl) {
+    alert("Unable to initialize WebGL. Your browser may not support it.");
+    gl = null;
+  }
+  return gl;
 }
 
 /*====================== Other tools ================================*/
@@ -540,22 +544,33 @@ function randomInt(range) {
 }
 
 function makeIdentity(){
-	return [
-		1, 0, 0, 0,
-		0, 1, 0, 0,
-		0, 0, 1, 0,
-		0, 0, 0, 1];
+  return [
+    1, 0, 0, 0,
+    0, 1, 0, 0,
+    0, 0, 1, 0,
+    0, 0, 0, 1];
 }
 
 function make2DProjection(width, height, depth){
-	// Note: This matrix flips the Y axis so that 0 is at the top
-	return [
-		2 / width, 0, 0, 0,
-		0, -2 / height, 0, 0,
-		0, 0, 2 / depth, 0,
-		-1, 1, 0, 1];
+  // Note: This matrix flips the Y axis so that 0 is at the top
+  return [
+    2 / width, 0, 0, 0,
+    0, -2 / height, 0, 0,
+    0, 0, 2 / depth, 0,
+    -1, 1, 0, 1];
 }
 
 function degToRad(anglesDeg){
-	return anglesDeg * Math.PI / 180;
+  return anglesDeg * Math.PI / 180;
+}
+
+function makePerspective(fieldOfViewInRadians, aspect, near, far){
+  var f = Math.tan(Math.PI * 0.5 - 0.5 * fieldOfViewInRadians);
+  var rangeInv = 1.0 / (near - far);
+
+  return [
+    f / aspect, 0, 0, 0,
+    0, f, 0, 0,
+    0, 0, (near + far) * rangeInv, -1,
+    0, 0, near * far * rangeInv * 2, 0];
 }
