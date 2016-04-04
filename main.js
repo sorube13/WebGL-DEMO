@@ -55,10 +55,13 @@ gl.bindBuffer(gl.ARRAY_BUFFER, null);*/
 
 /* =========== Variables ============*/
 
-var translation = [-50, 50, -360];
+var translation = [0, 0, -360];
 var rotation = [190, 40, 320];
 var scale = [1, 1, 1];
 var fieldOfViewRadians = degToRad(60);
+var rotationSpeed = 2.0;
+
+var then = 0;
 
 /* ===========Associating shaders to buffer objects============*/
 
@@ -84,7 +87,7 @@ gl.vertexAttribPointer(colorLocation, 3, gl.UNSIGNED_BYTE, true, 0, 0);
 setColors(gl);
 
 prepareScene();
-drawScene();
+requestAnimationFrame(drawScene);
 
 /*=================Drawing scene methods ========================*/
 function prepareScene(){
@@ -98,7 +101,17 @@ function prepareScene(){
   gl.viewport(0,0,canvas.width,canvas.height);
 
 }
-function drawScene(){
+function drawScene(now){
+  // Convert to seconds
+  now *= 0.001;
+  // Subtract the previous time fro the current time
+  var deltaTime = now - then;
+  // Remember the current time for the next frame
+  then = now;
+
+  // Every frame increase the rotation a little
+  rotation[1] += rotationSpeed * deltaTime;
+
   // Clear the color buffer bit
   gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
   
@@ -125,6 +138,8 @@ function drawScene(){
 
 
   gl.drawArrays(gl.TRIANGLES, 0, 16*6);
+
+  requestAnimationFrame(drawScene);
 
 }
 
