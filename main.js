@@ -55,9 +55,10 @@ gl.bindBuffer(gl.ARRAY_BUFFER, null);*/
 
 /* =========== Variables ============*/
 
-var translation = [45, 150, 0];
-var rotation = [40, 25, 325];
+var translation = [-50, 50, -360];
+var rotation = [190, 40, 320];
 var scale = [1, 1, 1];
+var fieldOfViewRadians = degToRad(60);
 
 /* ===========Associating shaders to buffer objects============*/
 
@@ -92,6 +93,7 @@ function prepareScene(){
 
   // Enable the depth test
   gl.enable(gl.DEPTH_TEST); 
+
   // Set the view port
   gl.viewport(0,0,canvas.width,canvas.height);
 
@@ -99,14 +101,16 @@ function prepareScene(){
 function drawScene(){
   // Clear the color buffer bit
   gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
-
-  var projectionMatrix = make2DProjection(canvas.clientWidth, canvas.clientHeight, 400);
-
+  
+  var aspect = canvas.clientWidth / canvas.clientHeight;
+  var projectionMatrix = makePerspective(fieldOfViewRadians, aspect, 1, 2000);
   var translationMatrix = makeTranslation(translation[0], translation[1], translation[2]);
   var rotationXMatrix = makeXRotation(rotation[0]);
   var rotationYMatrix = makeYRotation(rotation[1]);
   var rotationZMatrix = makeZRotation(rotation[2]);
   var scaleMatrix = makeScale(scale[0], scale[1], scale[2]);
+
+
 
   // var moveOriginMatrix = makeTranslation(-50, -75);
   //var matrix = matrixMultiply(moveOriginMatrix, scaleMatrix);
@@ -558,4 +562,15 @@ function make2DProjection(width, height, depth){
 
 function degToRad(anglesDeg){
   return anglesDeg * Math.PI / 180;
+}
+
+function makePerspective(fieldOfViewInRadians, aspect, near, far){
+  var f = Math.tan(Math.PI * 0.5 - 0.5 * fieldOfViewInRadians);
+  var rangeInv = 1.0 / (near - far);
+
+  return [
+    f / aspect, 0, 0, 0,
+    0, f, 0, 0,
+    0, 0, (near + far) * rangeInv, -1,
+    0, 0, near * far * rangeInv * 2, 0];
 }
