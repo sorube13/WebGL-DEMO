@@ -7,22 +7,42 @@
 	<meta name="author" content="Silvia Orube">
 	<meta charset="UTF-8">
 	<meta name="viewport" content="width=device-width,initial-scale=1,minimum-scale=1,maximum-scale=1">
+	<title>WebGL Demo</title>
 
 	<script src="resources/jquery-1.7.1.min.js"></script>
 	<script src="resources/jquery-ui-1.8.16.custom.min.js"></script>
-	<script src="main.js"></script>
+	<script src="webgl-utils.js"></script>
 	<script src="webgl-3d-math.js"></script>
+	<script src="main.js"></script>
 	
+	<!-- vertex shader -->
+	<script id="3d-vertex-shader" type="x-shader/x-vertex">
+		attribute vec4 coordinates;
+		attribute vec2 a_texcoord;
 
+		uniform mat4 u_matrix;
 
-	<title>WebGL Demo</title>
+		varying vec2 v_texcoord;
+
+		void main(void){
+			gl_Position = u_matrix * coordinates;
+			v_texcoord = a_texcoord;
+		}
+	</script>
+
+	<!-- fragment shader -->
+	<script id="3d-fragment-shader" type="x-shader/x-fragment">
+	precision mediump float;
+	varying vec2 v_texcoord;
+	uniform sampler2D u_texture;
+	void main(void){
+		gl_FragColor = texture2D(u_texture, v_texcoord);
+	}
+	</script>
+
 </head>
 <body style="background: grey" >
 	<canvas id="myCanvas" width="300" height="300" ></canvas>
-
-	
-	
-
 
 </body>
 </html>

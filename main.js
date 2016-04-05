@@ -4,86 +4,29 @@ $( document ).ready(function() {
   main();
 });
 
-/*================= Global variables =========================*/
-
-var gl = null;
-var canvas = null;
-var fieldOfViewRadians = null;
-var modelXRotationRadians = null;
-var modelYRotationRadians = null;
-var then = 0;
-var matrixLocation = null;
-var coordLocation = null;
-var texcoordLocation = null;
-
-/*====================== Main method ===================================*/
-/**
-* Main method that is executed when body of html document is loaded
-*/
 function main(){
 
   /*=================Creating a canvas=========================*/
-  canvas = document.getElementById('myCanvas');
-  gl = initWebGL(canvas);
+  var canvas = document.getElementById('myCanvas');
+  var gl = initWebGL(canvas);
 
-  /*========================Shaders============================*/
-  // Vertex shader source code
-  var vertCode =
-  'attribute vec4 coordinates;' + 
-  'attribute vec2 a_texcoord;' +
-   
-  'uniform mat4 u_matrix;' +
-
-  'varying vec2 v_texcoord;' +
-
-  'void main(void) {' + 
-  ' gl_Position = u_matrix * coordinates;'+
-  ' v_texcoord = a_texcoord;' +
-  '}';
-
-  //Create a vertex shader object
-  var vertShader = gl.createShader(gl.VERTEX_SHADER);
-  gl.shaderSource(vertShader, vertCode);
-  gl.compileShader(vertShader);
-
-  //Fragment shader source code
-  var fragCode =
-   'precision mediump float;' +
-   'varying vec2 v_texcoord;' +
-   'uniform sampler2D u_texture;' +
-   'void main(void) {' + 
-   ' gl_FragColor = texture2D(u_texture, v_texcoord);' +
-   '}';
-
-  // Create fragment shader object
-  var fragShader = gl.createShader(gl.FRAGMENT_SHADER);
-  gl.shaderSource(fragShader, fragCode);
-  gl.compileShader(fragShader);
-
-  // Create a shader program object to store combined shader program
-  var shaderProgram = gl.createProgram();
-  gl.attachShader(shaderProgram, vertShader); 
-  gl.attachShader(shaderProgram, fragShader);
-  gl.linkProgram(shaderProgram);
-
-  // Use the combined shader program object
+  // setup GLSL program
+  var shaderProgram = createProgramFromScripts(gl,"3d-vertex-shader", "3d-fragment-shader");
   gl.useProgram(shaderProgram);
-
 
   /* =========== Variables ============*/
 
-  fieldOfViewRadians = degToRad(60);
-  modelXRotationRadians = degToRad(0);
-  modelYRotationRadians = degToRad(0);
-
-  then = 0;
+  var fieldOfViewRadians = degToRad(60);
+  var modelXRotationRadians = degToRad(0);
+  var modelYRotationRadians = degToRad(0);
+  var then = 0;
 
   /* ===========Associating variables to shaders ============*/
 
   // Set Locations
-  matrixLocation = gl.getUniformLocation(shaderProgram, "u_matrix");
-  coordLocation = gl.getAttribLocation(shaderProgram, "coordinates");
-  texcoordLocation = gl.getAttribLocation(shaderProgram, "a_texcoord");
+  var matrixLocation = gl.getUniformLocation(shaderProgram, "u_matrix");
+  var coordLocation = gl.getAttribLocation(shaderProgram, "coordinates");
+  var texcoordLocation = gl.getAttribLocation(shaderProgram, "a_texcoord");
 
   /*====================== Buffers ===================================*/
   // set vertex to coordinates
@@ -95,8 +38,8 @@ function main(){
   setCube(gl);
 
   // Create a buffer for texcoords.
-  var buffer = gl.createBuffer();
-  gl.bindBuffer(gl.ARRAY_BUFFER, buffer);
+  var tex_buffer = gl.createBuffer();
+  gl.bindBuffer(gl.ARRAY_BUFFER, tex_buffer);
   gl.enableVertexAttribArray(texcoordLocation);
   gl.vertexAttribPointer(texcoordLocation, 2, gl.FLOAT, false, 0, 0);
 
@@ -130,74 +73,75 @@ function main(){
 
   prepareScene();
   requestAnimationFrame(drawScene);
-}
 
-/*=================Drawing scene methods ========================*/
-function prepareScene(){
-  if(gl){
-    // Clear the canvas (default background color)
-    gl.clearColor(1, 1, 1, 0.9);
 
-    // Enable the depth test
-    gl.enable(gl.DEPTH_TEST); 
+  /*=================Drawing scene methods ========================*/
+  function prepareScene(){
+    if(gl){
+      // Clear the canvas (default background color)
+      gl.clearColor(1, 1, 1, 0.9);
 
-    // Set the view port
-    gl.viewport(0,0,canvas.width,canvas.height);
+      // Enable the depth test
+      gl.enable(gl.DEPTH_TEST); 
+
+      // Set the view port
+      gl.viewport(0,0,canvas.width,canvas.height);
+    }
+
   }
+    // Draw the scene.
+  function drawScene(now) {
+    if(gl){
+      // conver to seconds;
+      now *= 0.001;
+      // Subtract the previous time from the current time
+      var deltaTime = now - then;
+      // Remember the current time for the next frame.
+      then = now;
 
-}
-  // Draw the scene.
-function drawScene(now) {
-  if(gl){
-    // conver to seconds;
-    now *= 0.001;
-    // Subtract the previous time from the current time
-    var deltaTime = now - then;
-    // Remember the current time for the next frame.
-    then = now;
+      // Animate the rotation
+      modelYRotationRadians += -0.7 * deltaTime;
+      modelXRotationRadians += -0.4 * deltaTime;
+      
+      // Clear the canvas AND the depth buffer.
+      gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
 
-    // Animate the rotation
-    modelYRotationRadians += -0.7 * deltaTime;
-    modelXRotationRadians += -0.4 * deltaTime;
+      // Compute the projection matrix
+      var aspect = canvas.clientWidth / canvas.clientHeight;
+      var projectionMatrix =
+          makePerspective(fieldOfViewRadians, aspect, 1, 2000);
+
+      var cameraPosition = [0, 0, 2];
+      var up = [0, 1, 0];
+      var target = [0, 0, 0];
+
+      // Compute the camera's matrix using look at.
+      var cameraMatrix = makeLookAt(cameraPosition, target, up);
+
+      // Make a view matrix from the camera matrix.
+      var viewMatrix = makeInverse(cameraMatrix);
+
+      var translationMatrix = makeTranslation(0, 0, 0);
+      var xRotationMatrix = makeXRotation(modelXRotationRadians);
+      var yRotationMatrix = makeYRotation(modelYRotationRadians);
+
+      // Multiply the matrices.
+      var matrix = yRotationMatrix;
+      matrix = matrixMultiply(matrix, xRotationMatrix);
+      matrix = matrixMultiply(matrix, translationMatrix);
+      matrix = matrixMultiply(matrix, viewMatrix);
+      matrix = matrixMultiply(matrix, projectionMatrix);
+
+      // Set the matrix.
+      gl.uniformMatrix4fv(matrixLocation, false, matrix);
+
+      // Draw the geometry.
+      gl.drawArrays(gl.TRIANGLES, 0, 6 * 6);
+
+      requestAnimationFrame(drawScene);
+    }
     
-    // Clear the canvas AND the depth buffer.
-    gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
-
-    // Compute the projection matrix
-    var aspect = canvas.clientWidth / canvas.clientHeight;
-    var projectionMatrix =
-        makePerspective(fieldOfViewRadians, aspect, 1, 2000);
-
-    var cameraPosition = [0, 0, 2];
-    var up = [0, 1, 0];
-    var target = [0, 0, 0];
-
-    // Compute the camera's matrix using look at.
-    var cameraMatrix = makeLookAt(cameraPosition, target, up);
-
-    // Make a view matrix from the camera matrix.
-    var viewMatrix = makeInverse(cameraMatrix);
-
-    var translationMatrix = makeTranslation(0, 0, 0);
-    var xRotationMatrix = makeXRotation(modelXRotationRadians);
-    var yRotationMatrix = makeYRotation(modelYRotationRadians);
-
-    // Multiply the matrices.
-    var matrix = yRotationMatrix;
-    matrix = matrixMultiply(matrix, xRotationMatrix);
-    matrix = matrixMultiply(matrix, translationMatrix);
-    matrix = matrixMultiply(matrix, viewMatrix);
-    matrix = matrixMultiply(matrix, projectionMatrix);
-
-    // Set the matrix.
-    gl.uniformMatrix4fv(matrixLocation, false, matrix);
-
-    // Draw the geometry.
-    gl.drawArrays(gl.TRIANGLES, 0, 6 * 6);
-
-    requestAnimationFrame(drawScene);
   }
-  
 }
 
 /*=================GEOMETRY========================*/
@@ -752,19 +696,7 @@ function setTexcoordsCube(gl) {
 
 /*=================Initialize WebGL ========================*/
 
-function initWebGL(canvas) {
-  var gl = null;
-  try {
-    // Try to grab the standard context. If it fails, fallback to experimental.
-    gl = canvas.getContext("webgl") || canvas.getContext("experimental-webgl");
-  }catch(e) {}
-  // If we don't have a GL context, give up now
-  if (!gl) {
-    alert("Unable to initialize WebGL. Your browser may not support it.");
-    gl = null;
-  }
-  return gl;
-}
+
 
 /*====================== Other tools ================================*/
 
