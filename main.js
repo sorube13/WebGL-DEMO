@@ -1,131 +1,147 @@
-/*=================Creating a canvas=========================*/
-var canvas = document.getElementById('myCanvas');
-var gl = initWebGL(canvas);
+"use strict";
 
-/*========================Shaders============================*/
-// Vertex shader source code
-var vertCode =
-'attribute vec4 coordinates;' + 
-'attribute vec4 a_color;' + 
- 
-'uniform mat4 u_matrix;' +
+$( document ).ready(function() {
+  main();
+});
 
-'varying vec4 vColor;' +
+function main(){
 
-'void main(void) {' + 
-' gl_Position = u_matrix * coordinates;'+
-' vColor = a_color;' + 
-'}';
+  /*=================Creating a canvas=========================*/
+  var canvas = document.getElementById('myCanvas');
+  var gl = initWebGL(canvas);
 
-//Create a vertex shader object
-var vertShader = gl.createShader(gl.VERTEX_SHADER);
-gl.shaderSource(vertShader, vertCode);
-gl.compileShader(vertShader);
+  // setup GLSL program
+  var shaderProgram = createProgramFromScripts(gl,"3d-vertex-shader", "3d-fragment-shader");
+  gl.useProgram(shaderProgram);
 
-//Fragment shader source code
-var fragCode =
- 'precision mediump float;' + 
- 'varying vec4 vColor;' + 
- 'void main(void) {' + 
- 'gl_FragColor = vColor;' + 
- '}';
+  /* =========== Variables ============*/
 
-// Create fragment shader object
-var fragShader = gl.createShader(gl.FRAGMENT_SHADER);
-gl.shaderSource(fragShader, fragCode);
-gl.compileShader(fragShader);
+  var fieldOfViewRadians = degToRad(60);
+  var modelXRotationRadians = degToRad(0);
+  var modelYRotationRadians = degToRad(0);
+  var then = 0;
 
-// Create a shader program object to store combined shader program
-var shaderProgram = gl.createProgram();
-gl.attachShader(shaderProgram, vertShader); 
-gl.attachShader(shaderProgram, fragShader);
-gl.linkProgram(shaderProgram);
+  /* ===========Associating variables to shaders ============*/
 
-// Use the combined shader program object
-gl.useProgram(shaderProgram);
+  // Set Locations
+  var matrixLocation = gl.getUniformLocation(shaderProgram, "u_matrix");
+  var coordLocation = gl.getAttribLocation(shaderProgram, "coordinates");
+  var texcoordLocation = gl.getAttribLocation(shaderProgram, "a_texcoord");
 
-/*===========Defining and storing the geometry==============*/
+  /*====================== Buffers ===================================*/
+  // set vertex to coordinates
+  var vertex_buffer = gl.createBuffer();
+  gl.bindBuffer(gl.ARRAY_BUFFER, vertex_buffer);
+  gl.enableVertexAttribArray(coordLocation)
+  gl.vertexAttribPointer(coordLocation, 3, gl.FLOAT, false, 0, 0);
 
+  setCube(gl);
 
-// Create an empty buffer object and store vertex data
-/*var vertex_buffer = gl.createBuffer();
-gl.bindBuffer(gl.ARRAY_BUFFER, vertex_buffer);
-setRectangle(gl, randomInt(300),randomInt(300),randomInt(300),randomInt(300));
-gl.bindBuffer(gl.ARRAY_BUFFER, null);*/
+  // Create a buffer for texcoords.
+  var tex_buffer = gl.createBuffer();
+  gl.bindBuffer(gl.ARRAY_BUFFER, tex_buffer);
+  gl.enableVertexAttribArray(texcoordLocation);
+  gl.vertexAttribPointer(texcoordLocation, 2, gl.FLOAT, false, 0, 0);
 
-/* =========== Variables ============*/
+  setTexcoordsCube(gl);
 
-var translation = [-50, 50, -360];
-var rotation = [190, 40, 320];
-var scale = [1, 1, 1];
-var fieldOfViewRadians = degToRad(60);
-
-/* ===========Associating shaders to buffer objects============*/
-
-// Set Locations
-var matrixLocation = gl.getUniformLocation(shaderProgram, "u_matrix");
-var colorLocation = gl.getAttribLocation(shaderProgram, "a_color");
-var coordLocation = gl.getAttribLocation(shaderProgram, "coordinates");
-
-// set vertex to coordinates
-var vertex_buffer = gl.createBuffer();
-gl.bindBuffer(gl.ARRAY_BUFFER, vertex_buffer);
-gl.enableVertexAttribArray(coordLocation)
-gl.vertexAttribPointer(coordLocation, 3, gl.FLOAT, false, 0, 0);
-
-setGeometry(gl);
+  var texture = gl.createTexture();
+  gl.bindTexture(gl.TEXTURE_2D, texture);
+  // Fill the texture with a 1x1 blue pixel.
+  gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, 1, 1, 0, gl.RGBA, gl.UNSIGNED_BYTE,
+                new Uint8Array([0, 0, 255, 255]));
+  // Asynchronously load an image
+  var image = new Image();
+  image.src = "resources/noodles.jpg";
+  image.addEventListener('load', function() {
+    // Now that the image has loaded make copy it to the texture.
+    gl.bindTexture(gl.TEXTURE_2D, texture);
+    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA,gl.UNSIGNED_BYTE, image);
+    
+    // Check if the image is a power of 2 in both dimensions.
+    if(isPowerOf2(image.width) && isPowerOf2(image.height)) {
+      gl.generateMipmap(gl.TEXTURE_2D);
+    } else{
+      // No, it's not a power of 2. Turn of mips and set wrapping to clamp to edge
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+    }
 
 
-var color_buffer = gl.createBuffer();
-gl.bindBuffer(gl.ARRAY_BUFFER, color_buffer);
-gl.enableVertexAttribArray(colorLocation);
-gl.vertexAttribPointer(colorLocation, 3, gl.UNSIGNED_BYTE, true, 0, 0);
+  });
 
-setColors(gl);
-
-prepareScene();
-drawScene();
-
-/*=================Drawing scene methods ========================*/
-function prepareScene(){
-  // Clear the canvas (default background color)
-  gl.clearColor(1, 1, 1, 0.9);
-
-  // Enable the depth test
-  gl.enable(gl.DEPTH_TEST); 
-
-  // Set the view port
-  gl.viewport(0,0,canvas.width,canvas.height);
-
-}
-function drawScene(){
-  // Clear the color buffer bit
-  gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
-  
-  var aspect = canvas.clientWidth / canvas.clientHeight;
-  var projectionMatrix = makePerspective(fieldOfViewRadians, aspect, 1, 2000);
-  var translationMatrix = makeTranslation(translation[0], translation[1], translation[2]);
-  var rotationXMatrix = makeXRotation(rotation[0]);
-  var rotationYMatrix = makeYRotation(rotation[1]);
-  var rotationZMatrix = makeZRotation(rotation[2]);
-  var scaleMatrix = makeScale(scale[0], scale[1], scale[2]);
+  prepareScene();
+  requestAnimationFrame(drawScene);
 
 
+  /*=================Drawing scene methods ========================*/
+  function prepareScene(){
+    if(gl){
+      // Clear the canvas (default background color)
+      gl.clearColor(1, 1, 1, 0.9);
 
-  // var moveOriginMatrix = makeTranslation(-50, -75);
-  //var matrix = matrixMultiply(moveOriginMatrix, scaleMatrix);
-  var matrix = matrixMultiply(scaleMatrix, rotationZMatrix);
-  matrix = matrixMultiply(matrix, rotationYMatrix);
-  matrix = matrixMultiply(matrix, rotationXMatrix);
-  matrix = matrixMultiply(matrix, translationMatrix);
-  matrix = matrixMultiply(matrix, projectionMatrix);
+      // Enable the depth test
+      gl.enable(gl.DEPTH_TEST); 
 
-  gl.uniformMatrix4fv(matrixLocation, false, matrix);
-  //gl.uniform3f(a_color, Math.random(), Math.random(), Math.random());
+      // Set the view port
+      gl.viewport(0,0,canvas.width,canvas.height);
+    }
 
+  }
+    // Draw the scene.
+  function drawScene(now) {
+    if(gl){
+      // conver to seconds;
+      now *= 0.001;
+      // Subtract the previous time from the current time
+      var deltaTime = now - then;
+      // Remember the current time for the next frame.
+      then = now;
 
-  gl.drawArrays(gl.TRIANGLES, 0, 16*6);
+      // Animate the rotation
+      modelYRotationRadians += -0.7 * deltaTime;
+      modelXRotationRadians += -0.4 * deltaTime;
+      
+      // Clear the canvas AND the depth buffer.
+      gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
 
+      // Compute the projection matrix
+      var aspect = canvas.clientWidth / canvas.clientHeight;
+      var projectionMatrix =
+          makePerspective(fieldOfViewRadians, aspect, 1, 2000);
+
+      var cameraPosition = [0, 0, 2];
+      var up = [0, 1, 0];
+      var target = [0, 0, 0];
+
+      // Compute the camera's matrix using look at.
+      var cameraMatrix = makeLookAt(cameraPosition, target, up);
+
+      // Make a view matrix from the camera matrix.
+      var viewMatrix = makeInverse(cameraMatrix);
+
+      var translationMatrix = makeTranslation(0, 0, 0);
+      var xRotationMatrix = makeXRotation(modelXRotationRadians);
+      var yRotationMatrix = makeYRotation(modelYRotationRadians);
+
+      // Multiply the matrices.
+      var matrix = yRotationMatrix;
+      matrix = matrixMultiply(matrix, xRotationMatrix);
+      matrix = matrixMultiply(matrix, translationMatrix);
+      matrix = matrixMultiply(matrix, viewMatrix);
+      matrix = matrixMultiply(matrix, projectionMatrix);
+
+      // Set the matrix.
+      gl.uniformMatrix4fv(matrixLocation, false, matrix);
+
+      // Draw the geometry.
+      gl.drawArrays(gl.TRIANGLES, 0, 6 * 6);
+
+      requestAnimationFrame(drawScene);
+    }
+    
+  }
 }
 
 /*=================GEOMETRY========================*/
@@ -153,9 +169,7 @@ function setRectangle(gl, x, y, width, height){
 
 // Fill the buffer with the values that define a letter 'F'.
 function setGeometry(gl) {
-  gl.bufferData(
-      gl.ARRAY_BUFFER,
-      new Float32Array([
+  var positions = new Float32Array([
           // left column front
           0,   0,  0,
           0, 150,  0,
@@ -282,8 +296,26 @@ function setGeometry(gl) {
           0, 150,  30,
           0,   0,   0,
           0, 150,  30,
-          0, 150,   0]),
-      gl.STATIC_DRAW);
+          0, 150,   0]);
+
+  // Center the F around the origin and Flip it around. We do this because
+  // we're in 3D now with and +Y is up where as before when we started with 2D
+  // we had +Y as down.
+
+  // We could do by changing all the values above but I'm lazy.
+  // We could also do it with a matrix at draw time but you should
+  // never do stuff at draw time if you can do it at init time.
+  var matrix = makeTranslation(-50, -75, -15);
+  matrix = matrixMultiply(matrix, makeXRotation(Math.PI));
+
+  for (var ii = 0; ii < positions.length; ii += 3) {
+    var vector = matrixVectorMultiply([positions[ii + 0], positions[ii + 1], positions[ii + 2], 1], matrix);
+    positions[ii + 0] = vector[0];
+    positions[ii + 1] = vector[1];
+    positions[ii + 2] = vector[2];
+  }
+
+  gl.bufferData(gl.ARRAY_BUFFER, positions, gl.STATIC_DRAW);
 }
 
 // Fill the buffer with colors for the 'F'.
@@ -421,156 +453,261 @@ function setColors(gl) {
       gl.STATIC_DRAW);
 }
 
+// Fill the buffer with texture coordinates the F.
+function setTexcoords(gl) {
+  gl.bufferData(
+      gl.ARRAY_BUFFER,
+      new Float32Array([
+        // left column front
+        0.22, 0.19,
+        0.22, 0.79,
+        0.34, 0.19,
+        0.22, 0.79,
+        0.34, 0.79,
+        0.34, 0.19,
 
-function makeTranslation(tx, ty, tz){
-  return [
-    1, 0, 0, 0,
-    0, 1, 0, 0,
-    0, 0, 1, 0,
-    tx, ty, tz, 1];
+        // top rung front
+        0.34, 0.19,
+        0.34, 0.31,
+        0.62, 0.19,
+        0.34, 0.31,
+        0.62, 0.31,
+        0.62, 0.19,
+
+        // middle rung front
+        0.34, 0.43,
+        0.34, 0.55,
+        0.49, 0.43,
+        0.34, 0.55,
+        0.49, 0.55,
+        0.49, 0.43,
+
+        // left column back
+        0, 0,
+        1, 0,
+        0, 1,
+        0, 1,
+        1, 0,
+        1, 1,
+
+        // top rung back
+        0, 0,
+        1, 0,
+        0, 1,
+        0, 1,
+        1, 0,
+        1, 1,
+
+        // middle rung back
+        0, 0,
+        1, 0,
+        0, 1,
+        0, 1,
+        1, 0,
+        1, 1,
+
+        // top
+        0, 0,
+        1, 0,
+        1, 1,
+        0, 0,
+        1, 1,
+        0, 1,
+
+        // top rung right
+        0, 0,
+        1, 0,
+        1, 1,
+        0, 0,
+        1, 1,
+        0, 1,
+
+        // under top rung
+        0, 0,
+        0, 1,
+        1, 1,
+        0, 0,
+        1, 1,
+        1, 0,
+
+        // between top rung and middle
+        0, 0,
+        1, 1,
+        0, 1,
+        0, 0,
+        1, 0,
+        1, 1,
+
+        // top of middle rung
+        0, 0,
+        1, 1,
+        0, 1,
+        0, 0,
+        1, 0,
+        1, 1,
+
+        // right of middle rung
+        0, 0,
+        1, 1,
+        0, 1,
+        0, 0,
+        1, 0,
+        1, 1,
+
+        // bottom of middle rung.
+        0, 0,
+        0, 1,
+        1, 1,
+        0, 0,
+        1, 1,
+        1, 0,
+
+        // right of bottom
+        0, 0,
+        1, 1,
+        0, 1,
+        0, 0,
+        1, 0,
+        1, 1,
+
+        // bottom
+        0, 0,
+        0, 1,
+        1, 1,
+        0, 0,
+        1, 1,
+        1, 0,
+
+        // left side
+        0, 0,
+        0, 1,
+        1, 1,
+        0, 0,
+        1, 1,
+        1, 0,
+      ]),
+      gl.STATIC_DRAW);
 }
 
-function makeXRotation(angleInDegrees){
-  var angleInRadians = degToRad(angleInDegrees);  var c = Math.cos(angleInRadians);
-  var s = Math.sin(angleInRadians);
-  return [
-    1, 0, 0, 0,
-    0, c, -s, 0,
-    0, -s, c, 0,
-    0, 0, 0, 1];
+function setCube(gl){
+  var positions = new Float32Array(
+    [
+    -0.5, -0.5,  -0.5,
+    -0.5,  0.5,  -0.5,
+     0.5, -0.5,  -0.5,
+    -0.5,  0.5,  -0.5,
+     0.5,  0.5,  -0.5,
+     0.5, -0.5,  -0.5,
+
+    -0.5, -0.5,   0.5,
+     0.5, -0.5,   0.5,
+    -0.5,  0.5,   0.5,
+    -0.5,  0.5,   0.5,
+     0.5, -0.5,   0.5,
+     0.5,  0.5,   0.5,
+
+    -0.5,   0.5, -0.5,
+    -0.5,   0.5,  0.5,
+     0.5,   0.5, -0.5,
+    -0.5,   0.5,  0.5,
+     0.5,   0.5,  0.5,
+     0.5,   0.5, -0.5,
+
+    -0.5,  -0.5, -0.5,
+     0.5,  -0.5, -0.5,
+    -0.5,  -0.5,  0.5,
+    -0.5,  -0.5,  0.5,
+     0.5,  -0.5, -0.5,
+     0.5,  -0.5,  0.5,
+
+    -0.5,  -0.5, -0.5,
+    -0.5,  -0.5,  0.5,
+    -0.5,   0.5, -0.5,
+    -0.5,  -0.5,  0.5,
+    -0.5,   0.5,  0.5,
+    -0.5,   0.5, -0.5,
+
+     0.5,  -0.5, -0.5,
+     0.5,   0.5, -0.5,
+     0.5,  -0.5,  0.5,
+     0.5,  -0.5,  0.5,
+     0.5,   0.5, -0.5,
+     0.5,   0.5,  0.5,
+
+    ]);
+  gl.bufferData(gl.ARRAY_BUFFER, positions, gl.STATIC_DRAW);
 }
 
-function makeYRotation(angleInDegrees){
-  var angleInRadians = degToRad(angleInDegrees);  var c = Math.cos(angleInRadians);
-  var s = Math.sin(angleInRadians);
-  return [
-    c, 0, -s, 0,
-      0, 1, 0, 0,
-      s, 0, c, 0,
-      0, 0, 0, 1];
+
+
+// Fill the buffer with texture coordinates the cube.
+function setTexcoordsCube(gl) {
+  gl.bufferData(
+      gl.ARRAY_BUFFER,
+      new Float32Array(
+        [
+        // select the bottom left image
+        0   , 0  ,
+        0   , 0.5,
+        0.25, 0  ,
+        0   , 0.5,
+        0.25, 0.5,
+        0.25, 0  ,
+        // select the bottom middle image
+        0.25, 0  ,
+        0.5 , 0  ,
+        0.25, 0.5,
+        0.25, 0.5,
+        0.5 , 0  ,
+        0.5 , 0.5,
+        // select to bottom right image
+        0.5 , 0  ,
+        0.5 , 0.5,
+        0.75, 0  ,
+        0.5 , 0.5,
+        0.75, 0.5,
+        0.75, 0  ,
+        // select the top left image
+        0   , 0.5,
+        0.25, 0.5,
+        0   , 1  ,
+        0   , 1  ,
+        0.25, 0.5,
+        0.25, 1  ,
+        // select the top middle image
+        0.25, 0.5,
+        0.25, 1  ,
+        0.5 , 0.5,
+        0.25, 1  ,
+        0.5 , 1  ,
+        0.5 , 0.5,
+        // select the top right image
+        0.5 , 0.5,
+        0.75, 0.5,
+        0.5 , 1  ,
+        0.5 , 1  ,
+        0.75, 0.5,
+        0.75, 1  ,
+
+      ]),
+      gl.STATIC_DRAW);
 }
 
-function makeZRotation(angleInDegrees){
-  var angleInRadians = degToRad(angleInDegrees);
-  var c = Math.cos(angleInRadians);
-  var s = Math.sin(angleInRadians);
-  return [
-      c, s, 0, 0,
-      -s, c, 0, 0,
-      0, 0, 1, 0,
-      0, 0, 0, 1];
-}
-
-function makeScale(sx, sy, sz){
-  return [
-    sx, 0, 0, 0,
-    0, sy, 0, 0,
-    0, 0, sz, 0,
-    0, 0, 0, 1];
-}
 
 /*=================Initialize WebGL ========================*/
 
-function initWebGL(canvas) {
-  gl = null;
-  try {
-    // Try to grab the standard context. If it fails, fallback to experimental.
-    gl = canvas.getContext("webgl") || canvas.getContext("experimental-webgl");
-  }catch(e) {}
-  // If we don't have a GL context, give up now
-  if (!gl) {
-    alert("Unable to initialize WebGL. Your browser may not support it.");
-    gl = null;
-  }
-  return gl;
-}
+
 
 /*====================== Other tools ================================*/
 
-function matrixMultiply(a, b) {
-  var a00 = a[0*4+0];
-  var a01 = a[0*4+1];
-  var a02 = a[0*4+2];
-  var a03 = a[0*4+3];
-  var a10 = a[1*4+0];
-  var a11 = a[1*4+1];
-  var a12 = a[1*4+2];
-  var a13 = a[1*4+3];
-  var a20 = a[2*4+0];
-  var a21 = a[2*4+1];
-  var a22 = a[2*4+2];
-  var a23 = a[2*4+3];
-  var a30 = a[3*4+0];
-  var a31 = a[3*4+1];
-  var a32 = a[3*4+2];
-  var a33 = a[3*4+3];
-  var b00 = b[0*4+0];
-  var b01 = b[0*4+1];
-  var b02 = b[0*4+2];
-  var b03 = b[0*4+3];
-  var b10 = b[1*4+0];
-  var b11 = b[1*4+1];
-  var b12 = b[1*4+2];
-  var b13 = b[1*4+3];
-  var b20 = b[2*4+0];
-  var b21 = b[2*4+1];
-  var b22 = b[2*4+2];
-  var b23 = b[2*4+3];
-  var b30 = b[3*4+0];
-  var b31 = b[3*4+1];
-  var b32 = b[3*4+2];
-  var b33 = b[3*4+3];
-  return [a00 * b00 + a01 * b10 + a02 * b20 + a03 * b30,
-          a00 * b01 + a01 * b11 + a02 * b21 + a03 * b31,
-          a00 * b02 + a01 * b12 + a02 * b22 + a03 * b32,
-          a00 * b03 + a01 * b13 + a02 * b23 + a03 * b33,
-          a10 * b00 + a11 * b10 + a12 * b20 + a13 * b30,
-          a10 * b01 + a11 * b11 + a12 * b21 + a13 * b31,
-          a10 * b02 + a11 * b12 + a12 * b22 + a13 * b32,
-          a10 * b03 + a11 * b13 + a12 * b23 + a13 * b33,
-          a20 * b00 + a21 * b10 + a22 * b20 + a23 * b30,
-          a20 * b01 + a21 * b11 + a22 * b21 + a23 * b31,
-          a20 * b02 + a21 * b12 + a22 * b22 + a23 * b32,
-          a20 * b03 + a21 * b13 + a22 * b23 + a23 * b33,
-          a30 * b00 + a31 * b10 + a32 * b20 + a33 * b30,
-          a30 * b01 + a31 * b11 + a32 * b21 + a33 * b31,
-          a30 * b02 + a31 * b12 + a32 * b22 + a33 * b32,
-          a30 * b03 + a31 * b13 + a32 * b23 + a33 * b33];
+function degToRad(d){
+  return d * Math.PI / 180;
 }
 
-// Returns a random integer from 0 to range - 1.
-function randomInt(range) {
-  return Math.floor(Math.random() * range);
+function radToDeg(r){
+  return r * 180 / Math.PI;
 }
 
-function makeIdentity(){
-  return [
-    1, 0, 0, 0,
-    0, 1, 0, 0,
-    0, 0, 1, 0,
-    0, 0, 0, 1];
-}
-
-function make2DProjection(width, height, depth){
-  // Note: This matrix flips the Y axis so that 0 is at the top
-  return [
-    2 / width, 0, 0, 0,
-    0, -2 / height, 0, 0,
-    0, 0, 2 / depth, 0,
-    -1, 1, 0, 1];
-}
-
-function degToRad(anglesDeg){
-  return anglesDeg * Math.PI / 180;
-}
-
-function makePerspective(fieldOfViewInRadians, aspect, near, far){
-  var f = Math.tan(Math.PI * 0.5 - 0.5 * fieldOfViewInRadians);
-  var rangeInv = 1.0 / (near - far);
-
-  return [
-    f / aspect, 0, 0, 0,
-    0, f, 0, 0,
-    0, 0, (near + far) * rangeInv, -1,
-    0, 0, near * far * rangeInv * 2, 0];
+function isPowerOf2(value){
+  return (value & (value-1)) == 0;
 }
