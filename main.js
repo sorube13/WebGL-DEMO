@@ -73,7 +73,7 @@ function main(){
   /* =========== Variables ============*/
 
   fieldOfViewRadians = degToRad(60);
-  modelXRotationRadians = degToRad(20);
+  modelXRotationRadians = degToRad(0);
   modelYRotationRadians = degToRad(0);
 
   then = 0;
@@ -92,7 +92,7 @@ function main(){
   gl.enableVertexAttribArray(coordLocation)
   gl.vertexAttribPointer(coordLocation, 3, gl.FLOAT, false, 0, 0);
 
-  setGeometry(gl);
+  setCube(gl);
 
   // Create a buffer for texcoords.
   var buffer = gl.createBuffer();
@@ -100,7 +100,7 @@ function main(){
   gl.enableVertexAttribArray(texcoordLocation);
   gl.vertexAttribPointer(texcoordLocation, 2, gl.FLOAT, false, 0, 0);
 
-  setTexcoords(gl);
+  setTexcoordsCube(gl);
 
   var texture = gl.createTexture();
   gl.bindTexture(gl.TEXTURE_2D, texture);
@@ -109,7 +109,7 @@ function main(){
                 new Uint8Array([0, 0, 255, 255]));
   // Asynchronously load an image
   var image = new Image();
-  image.src = "resources/keyboard.jpg";
+  image.src = "resources/noodles.jpg";
   image.addEventListener('load', function() {
     // Now that the image has loaded make copy it to the texture.
     gl.bindTexture(gl.TEXTURE_2D, texture);
@@ -158,7 +158,8 @@ function drawScene(now) {
 
     // Animate the rotation
     modelYRotationRadians += -0.7 * deltaTime;
-
+    modelXRotationRadians += -0.4 * deltaTime;
+    
     // Clear the canvas AND the depth buffer.
     gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
 
@@ -167,7 +168,7 @@ function drawScene(now) {
     var projectionMatrix =
         makePerspective(fieldOfViewRadians, aspect, 1, 2000);
 
-    var cameraPosition = [0, 0, 200];
+    var cameraPosition = [0, 0, 2];
     var up = [0, 1, 0];
     var target = [0, 0, 0];
 
@@ -192,7 +193,7 @@ function drawScene(now) {
     gl.uniformMatrix4fv(matrixLocation, false, matrix);
 
     // Draw the geometry.
-    gl.drawArrays(gl.TRIANGLES, 0, 16 * 6);
+    gl.drawArrays(gl.TRIANGLES, 0, 6 * 6);
 
     requestAnimationFrame(drawScene);
   }
@@ -640,6 +641,110 @@ function setTexcoords(gl) {
         0, 0,
         1, 1,
         1, 0,
+      ]),
+      gl.STATIC_DRAW);
+}
+
+function setCube(gl){
+  var positions = new Float32Array(
+    [
+    -0.5, -0.5,  -0.5,
+    -0.5,  0.5,  -0.5,
+     0.5, -0.5,  -0.5,
+    -0.5,  0.5,  -0.5,
+     0.5,  0.5,  -0.5,
+     0.5, -0.5,  -0.5,
+
+    -0.5, -0.5,   0.5,
+     0.5, -0.5,   0.5,
+    -0.5,  0.5,   0.5,
+    -0.5,  0.5,   0.5,
+     0.5, -0.5,   0.5,
+     0.5,  0.5,   0.5,
+
+    -0.5,   0.5, -0.5,
+    -0.5,   0.5,  0.5,
+     0.5,   0.5, -0.5,
+    -0.5,   0.5,  0.5,
+     0.5,   0.5,  0.5,
+     0.5,   0.5, -0.5,
+
+    -0.5,  -0.5, -0.5,
+     0.5,  -0.5, -0.5,
+    -0.5,  -0.5,  0.5,
+    -0.5,  -0.5,  0.5,
+     0.5,  -0.5, -0.5,
+     0.5,  -0.5,  0.5,
+
+    -0.5,  -0.5, -0.5,
+    -0.5,  -0.5,  0.5,
+    -0.5,   0.5, -0.5,
+    -0.5,  -0.5,  0.5,
+    -0.5,   0.5,  0.5,
+    -0.5,   0.5, -0.5,
+
+     0.5,  -0.5, -0.5,
+     0.5,   0.5, -0.5,
+     0.5,  -0.5,  0.5,
+     0.5,  -0.5,  0.5,
+     0.5,   0.5, -0.5,
+     0.5,   0.5,  0.5,
+
+    ]);
+  gl.bufferData(gl.ARRAY_BUFFER, positions, gl.STATIC_DRAW);
+}
+
+
+
+// Fill the buffer with texture coordinates the cube.
+function setTexcoordsCube(gl) {
+  gl.bufferData(
+      gl.ARRAY_BUFFER,
+      new Float32Array(
+        [
+        // select the bottom left image
+        0   , 0  ,
+        0   , 0.5,
+        0.25, 0  ,
+        0   , 0.5,
+        0.25, 0.5,
+        0.25, 0  ,
+        // select the bottom middle image
+        0.25, 0  ,
+        0.5 , 0  ,
+        0.25, 0.5,
+        0.25, 0.5,
+        0.5 , 0  ,
+        0.5 , 0.5,
+        // select to bottom right image
+        0.5 , 0  ,
+        0.5 , 0.5,
+        0.75, 0  ,
+        0.5 , 0.5,
+        0.75, 0.5,
+        0.75, 0  ,
+        // select the top left image
+        0   , 0.5,
+        0.25, 0.5,
+        0   , 1  ,
+        0   , 1  ,
+        0.25, 0.5,
+        0.25, 1  ,
+        // select the top middle image
+        0.25, 0.5,
+        0.25, 1  ,
+        0.5 , 0.5,
+        0.25, 1  ,
+        0.5 , 1  ,
+        0.5 , 0.5,
+        // select the top right image
+        0.5 , 0.5,
+        0.75, 0.5,
+        0.5 , 1  ,
+        0.5 , 1  ,
+        0.75, 0.5,
+        0.75, 1  ,
+
       ]),
       gl.STATIC_DRAW);
 }
