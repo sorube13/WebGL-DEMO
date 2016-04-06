@@ -77,70 +77,65 @@ function main(){
 
   /*=================Drawing scene methods ========================*/
   function prepareScene(){
-    if(gl){
-      // Clear the canvas (default background color)
-      gl.clearColor(1, 1, 1, 0.9);
+    // Clear the canvas (default background color)
+    gl.clearColor(1, 1, 1, 0.9);
 
-      // Enable the depth test
-      gl.enable(gl.DEPTH_TEST); 
+    // Enable the depth test
+    gl.enable(gl.DEPTH_TEST); 
 
-      // Set the view port
-      gl.viewport(0,0,canvas.width,canvas.height);
-    }
-
+    // Set the view port
+    gl.viewport(0,0,canvas.width,canvas.height);
   }
-    // Draw the scene.
+
+  // Draw the scene.
   function drawScene(now) {
-    if(gl){
-      // conver to seconds;
-      now *= 0.001;
-      // Subtract the previous time from the current time
-      var deltaTime = now - then;
-      // Remember the current time for the next frame.
-      then = now;
+    // conver to seconds;
+    now *= 0.001;
+    // Subtract the previous time from the current time
+    var deltaTime = now - then;
+    // Remember the current time for the next frame.
+    then = now;
 
-      // Animate the rotation
-      modelYRotationRadians += -0.7 * deltaTime;
-      modelXRotationRadians += -0.4 * deltaTime;
-      
-      // Clear the canvas AND the depth buffer.
-      gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
-
-      // Compute the projection matrix
-      var aspect = canvas.clientWidth / canvas.clientHeight;
-      var projectionMatrix =
-          makePerspective(fieldOfViewRadians, aspect, 1, 2000);
-
-      var cameraPosition = [0, 0, 2];
-      var up = [0, 1, 0];
-      var target = [0, 0, 0];
-
-      // Compute the camera's matrix using look at.
-      var cameraMatrix = makeLookAt(cameraPosition, target, up);
-
-      // Make a view matrix from the camera matrix.
-      var viewMatrix = makeInverse(cameraMatrix);
-
-      var translationMatrix = makeTranslation(0, 0, 0);
-      var xRotationMatrix = makeXRotation(modelXRotationRadians);
-      var yRotationMatrix = makeYRotation(modelYRotationRadians);
-
-      // Multiply the matrices.
-      var matrix = yRotationMatrix;
-      matrix = matrixMultiply(matrix, xRotationMatrix);
-      matrix = matrixMultiply(matrix, translationMatrix);
-      matrix = matrixMultiply(matrix, viewMatrix);
-      matrix = matrixMultiply(matrix, projectionMatrix);
-
-      // Set the matrix.
-      gl.uniformMatrix4fv(matrixLocation, false, matrix);
-
-      // Draw the geometry.
-      gl.drawArrays(gl.TRIANGLES, 0, 6 * 6);
-
-      requestAnimationFrame(drawScene);
-    }
+    // Animate the rotation
+    modelYRotationRadians += -0.7 * deltaTime;
+    modelXRotationRadians += -0.4 * deltaTime;
     
+    // Clear the canvas AND the depth buffer.
+    gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+
+    // Compute the projection matrix
+    var aspect = canvas.clientWidth / canvas.clientHeight;
+    var projectionMatrix =
+        makePerspective(fieldOfViewRadians, aspect, 1, 2000);
+
+    var cameraPosition = [0, 0, 2];
+    var up = [0, 1, 0];
+    var target = [0, 0, 0];
+
+    // Compute the camera's matrix using look at.
+    var cameraMatrix = makeLookAt(cameraPosition, target, up);
+
+    // Make a view matrix from the camera matrix.
+    var viewMatrix = makeInverse(cameraMatrix);
+
+    var translationMatrix = makeTranslation(0, 0, 0);
+    var xRotationMatrix = makeXRotation(modelXRotationRadians);
+    var yRotationMatrix = makeYRotation(modelYRotationRadians);
+
+    // Multiply the matrices.
+    var matrix = yRotationMatrix;
+    matrix = matrixMultiply(matrix, xRotationMatrix);
+    matrix = matrixMultiply(matrix, translationMatrix);
+    matrix = matrixMultiply(matrix, viewMatrix);
+    matrix = matrixMultiply(matrix, projectionMatrix);
+
+    // Set the matrix.
+    gl.uniformMatrix4fv(matrixLocation, false, matrix);
+
+    // Draw the geometry.
+    gl.drawArrays(gl.TRIANGLES, 0, 6 * 6);
+
+    requestAnimationFrame(drawScene);    
   }
 }
 
@@ -638,8 +633,6 @@ function setCube(gl){
   gl.bufferData(gl.ARRAY_BUFFER, positions, gl.STATIC_DRAW);
 }
 
-
-
 // Fill the buffer with texture coordinates the cube.
 function setTexcoordsCube(gl) {
   gl.bufferData(
@@ -692,11 +685,6 @@ function setTexcoordsCube(gl) {
       ]),
       gl.STATIC_DRAW);
 }
-
-
-/*=================Initialize WebGL ========================*/
-
-
 
 /*====================== Other tools ================================*/
 
